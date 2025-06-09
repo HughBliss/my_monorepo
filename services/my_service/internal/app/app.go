@@ -9,9 +9,9 @@ import (
 	"github.com/hughbliss/my_protobuf/gen/someservice"
 	"github.com/hughbliss/my_service/internal/handler"
 	"github.com/hughbliss/my_service/internal/server"
+	"github.com/hughbliss/my_service/internal/usecase"
 	"github.com/hughbliss/my_toolkit/reporter"
 	"github.com/hughbliss/my_toolkit/tracer"
-	"github.com/hughbliss/my_toolkit/tracer/exporter"
 	"net"
 )
 
@@ -23,8 +23,10 @@ var (
 
 var (
 	configYamlPath = zfg.Str("cfg_yaml_path", "./config.yaml", "CFGYAMLPATH", zfg.Alias("c"))
-	appName        = zfg.Str("app_name", "my_service", "APPNAME")
-	appVer         = zfg.Str("app_ver", "0.0.1", "APPVER", zfg.Alias("v"))
+
+	appName = zfg.Str("app_name", "my_service", "APPNAME")
+	appVer  = zfg.Str("app_ver", "0.0.1", "APPVER", zfg.Alias("v"))
+	env     = zfg.Str("env", "local", "ENV", zfg.Alias("e"))
 )
 
 func Run() {
@@ -35,11 +37,10 @@ func Run() {
 	}
 	fmt.Println("starting with config\n", zfg.Show())
 
-	jaegerExporter, err := exporter.Jaeger(ctx)
+	shutdown, err := tracer.Init(ctx, *appName, *appVer, *env)
 	if err != nil {
 		panic(err)
 	}
-	shutdown := tracer.Init(ctx, *appName, *appVer, jaegerExporter)
 	defer shutdown()
 
 	reporter.Init(tracer.HookForLogger())
@@ -47,7 +48,9 @@ func Run() {
 	s := server.Init()
 	defer s.GracefulStop()
 
-	someServiceHandler := handler.NewSomeServiceHandler()
+	someUsecase := usecase.NewSomeUsecase()
+
+	someServiceHandler := handler.NewSomeServiceHandler(someUsecase)
 
 	someservice.RegisterSomeServiceServer(s, someServiceHandler)
 

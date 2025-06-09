@@ -9,7 +9,6 @@ import (
 	"github.com/hughbliss/my_gateway/internal/gateway"
 	"github.com/hughbliss/my_toolkit/reporter"
 	"github.com/hughbliss/my_toolkit/tracer"
-	"github.com/hughbliss/my_toolkit/tracer/exporter"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog/log"
@@ -24,8 +23,10 @@ var (
 
 var (
 	configYamlPath = zfg.Str("cfg_yaml_path", "./config.yaml", "CFGYAMLPATH", zfg.Alias("c"))
-	appName        = zfg.Str("app_name", "my_gateway", "APPNAME")
-	appVer         = zfg.Str("app_ver", "0.0.1", "APPVER", zfg.Alias("v"))
+
+	appName = zfg.Str("app_name", "my_gateway", "APPNAME")
+	appVer  = zfg.Str("app_ver", "0.0.1", "APPVER", zfg.Alias("v"))
+	env     = zfg.Str("env", "local", "ENV", zfg.Alias("e"))
 )
 
 func Run() {
@@ -37,11 +38,10 @@ func Run() {
 	}
 	fmt.Println("starting with config\n", zfg.Show())
 
-	jaegerExporter, err := exporter.Jaeger(ctx)
+	shutdown, err := tracer.Init(ctx, *appName, *appVer, *env)
 	if err != nil {
 		panic(err)
 	}
-	shutdown := tracer.Init(ctx, *appName, *appVer, jaegerExporter)
 	defer shutdown()
 
 	reporter.Init(tracer.HookForLogger())
