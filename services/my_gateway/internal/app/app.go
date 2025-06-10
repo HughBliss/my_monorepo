@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	zfg "github.com/chaindead/zerocfg"
-	zfgEnv "github.com/chaindead/zerocfg/env"
-	zfgYaml "github.com/chaindead/zerocfg/yaml"
 	"github.com/hughbliss/my_gateway/internal/gateway"
+	"github.com/hughbliss/my_toolkit/cfg"
 	"github.com/hughbliss/my_toolkit/reporter"
 	"github.com/hughbliss/my_toolkit/tracer"
 	"github.com/labstack/echo/v4"
@@ -22,8 +21,6 @@ var (
 )
 
 var (
-	configYamlPath = zfg.Str("cfg_yaml_path", "./config.yaml", "CFGYAMLPATH", zfg.Alias("c"))
-
 	appName = zfg.Str("app_name", "my_gateway", "APPNAME")
 	appVer  = zfg.Str("app_ver", "0.0.1", "APPVER", zfg.Alias("v"))
 	env     = zfg.Str("env", "local", "ENV", zfg.Alias("e"))
@@ -33,10 +30,9 @@ func Run() {
 
 	ctx := context.Background()
 
-	if err := zfg.Parse(zfgEnv.New(), zfgYaml.New(configYamlPath)); err != nil {
+	if err := cfg.Init(); err != nil {
 		panic(err)
 	}
-	fmt.Println("starting with config\n", zfg.Show())
 
 	shutdown, err := tracer.Init(ctx, *appName, *appVer, *env)
 	if err != nil {
@@ -73,5 +69,5 @@ func registerMiddleware(e *echo.Echo) {
 	e.Use(echoMiddleware.Gzip())
 	e.Use(echoMiddleware.BodyLimit("2M"))
 	e.Use(otelecho.Middleware(*appName, otelecho.WithTracerProvider(tracer.Provider)))
-
+	e.Use(tracer.AddTraceIDToResponse)
 }

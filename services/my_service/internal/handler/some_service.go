@@ -2,12 +2,14 @@ package handler
 
 import (
 	"context"
-	"github.com/hughbliss/my_protobuf/gen/someservice"
+	someservicev1 "github.com/hughbliss/my_protobuf/go/pkg/gen/someservice/v1"
 	"github.com/hughbliss/my_toolkit/reporter"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"sync"
 )
 
-func NewSomeServiceHandler(logic SomeLogicProvider) someservice.SomeServiceServer {
+func NewSomeServiceHandler(logic SomeLogicProvider) someservicev1.SomeServiceServer {
 	return &SomeServiceHandler{
 		logic:  logic,
 		report: reporter.InitReporter("SomeServiceHandler"),
@@ -19,12 +21,17 @@ type SomeServiceHandler struct {
 	logic  SomeLogicProvider
 }
 
+func (s *SomeServiceHandler) AnotherExampleMethod(ctx context.Context, request *someservicev1.SomeExampleMethodRequest) (*someservicev1.SomeExampleMethodResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 type SomeLogicProvider interface {
 	SomeLogic(ctx context.Context, counter uint32) error
 }
 
 // SomeExampleMethod implements someservice.SomeServiceServer.
-func (s *SomeServiceHandler) SomeExampleMethod(ctx context.Context, req *someservice.SomeExampleMethodRequest) (*someservice.SomeExampleMethodResponse, error) {
+func (s *SomeServiceHandler) SomeExampleMethod(ctx context.Context, req *someservicev1.SomeExampleMethodRequest) (*someservicev1.SomeExampleMethodResponse, error) {
 	ctx, log, end := s.report.Start(ctx, "SomeExampleMethod")
 	defer end()
 
@@ -45,7 +52,5 @@ func (s *SomeServiceHandler) SomeExampleMethod(ctx context.Context, req *someser
 
 	wg.Wait()
 
-	return &someservice.SomeExampleMethodResponse{
-		SomeResponse: "ok",
-	}, nil
+	return nil, status.Errorf(codes.ResourceExhausted, "resource exhausted")
 }

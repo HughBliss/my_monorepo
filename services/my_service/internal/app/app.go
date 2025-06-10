@@ -6,19 +6,12 @@ import (
 	zfg "github.com/chaindead/zerocfg"
 	zfgEnv "github.com/chaindead/zerocfg/env"
 	zfgYaml "github.com/chaindead/zerocfg/yaml"
-	"github.com/hughbliss/my_protobuf/gen/someservice"
+	someservicev1 "github.com/hughbliss/my_protobuf/go/pkg/gen/someservice/v1"
 	"github.com/hughbliss/my_service/internal/handler"
-	"github.com/hughbliss/my_service/internal/server"
 	"github.com/hughbliss/my_service/internal/usecase"
+	"github.com/hughbliss/my_toolkit/grpcerver"
 	"github.com/hughbliss/my_toolkit/reporter"
 	"github.com/hughbliss/my_toolkit/tracer"
-	"net"
-)
-
-var (
-	listenGroup = zfg.NewGroup("listen")
-	listenHost  = zfg.Str("host", "0.0.0.0", "LISTEN_HOST", zfg.Group(listenGroup))
-	listenPort  = zfg.Uint32("port", 11000, "LISTEN_PORT", zfg.Group(listenGroup))
 )
 
 var (
@@ -45,19 +38,20 @@ func Run() {
 
 	reporter.Init(tracer.HookForLogger())
 
-	s := server.Init()
+	s := grpcerver.Init()
 	defer s.GracefulStop()
 
 	someUsecase := usecase.NewSomeUsecase()
 
 	someServiceHandler := handler.NewSomeServiceHandler(someUsecase)
 
-	someservice.RegisterSomeServiceServer(s, someServiceHandler)
+	someservicev1.RegisterSomeServiceServer(s, someServiceHandler)
 
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *listenHost, *listenPort))
+	listener, err := grpcerver.Listener()
 	if err != nil {
 		panic(err)
 	}
+	defer listener.Close()
 
 	if err := s.Serve(listener); err != nil {
 		panic(err)
