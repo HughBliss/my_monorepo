@@ -8,6 +8,13 @@ import (
 	"github.com/hughbliss/my_toolkit/reporter"
 )
 
+func NewRolesUsecase(db *dbauth.Client) *RolesUsecase {
+	return &RolesUsecase{
+		db:  db,
+		rep: reporter.InitReporter("RolesUsecase"),
+	}
+}
+
 const (
 	RolesGettingDBErr fault.Code = "RolesGettingDBErr" // RolesGettingDBErr: "ошибка получение ролей из базы данных"
 )

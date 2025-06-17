@@ -36,7 +36,7 @@ func Run() {
 	}
 	defer shutdown()
 
-	reporter.Init(tracer.HookForLogger())
+	reporter.Init(*appName, *appVer, *env, tracer.HookForLogger())
 
 	s := grpcerver.Init()
 	defer s.GracefulStop()

@@ -12,13 +12,27 @@ services:
       CONNECTION_SOMESERVICE: my_service:11000
       JAEGER_HOST: jaeger
       JAEGER_PORT: 4317
-      LOGLEVEL: -1
+      LOG_LEVEL: -1
     networks:
       - v2
     build:
-      dockerfile: ./services/my_gateway/Dockerfile
+      dockerfile: services/my_gateway/Dockerfile
       args:
         - SERVICE_NAME=my_gateway
+
+  my_auth_service:
+    container_name: my_auth_service
+    environment:
+      APPNAME: my_auth_service
+      JAEGER_HOST: jaeger
+      JAEGER_PORT: 4317
+      LOG_LEVEL: -1
+    networks:
+      - v2
+    build:
+      dockerfile: services/my_auth_service/Dockerfile
+      args:
+        - SERVICE_NAME=my_auth_service
 
   my_service:
     container_name: my_service
@@ -26,10 +40,10 @@ services:
       APPNAME: my_service
       JAEGER_HOST: jaeger
       JAEGER_PORT: 4317
-      LOGLEVEL: -1
+      LOG_LEVEL: -1
     networks:
       - v2
     build:
-      dockerfile: ./services/my_service/Dockerfile
+      dockerfile: services/my_service/Dockerfile
       args:
         - SERVICE_NAME=my_service

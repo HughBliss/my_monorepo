@@ -40,7 +40,7 @@ func Run() {
 	}
 	defer shutdown()
 
-	reporter.Init(tracer.HookForLogger())
+	reporter.Init(*appName, *appVer, *env, tracer.HookForLogger())
 
 	e := echo.New()
 	registerMiddleware(e)
@@ -62,7 +62,7 @@ func Run() {
 func registerMiddleware(e *echo.Echo) {
 	e.Use(echoMiddleware.LoggerWithConfig(echoMiddleware.LoggerConfig{
 		Format: "${status} ${method} ${uri}",
-		Output: log.With().Str("service", "echo").Logger(),
+		Output: log.With().Str("level", "info").Str("component", "echo").Logger(),
 	}))
 	e.Use(echoMiddleware.Recover())
 	e.Use(echoMiddleware.CORS())

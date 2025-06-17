@@ -10,4 +10,6 @@ listen:
   host: 0.0.0.0 # LISTEN_HOST
   port: 11000 # LISTEN_PORT
 
-log_level: DEBUG # LOGLEVEL уровень логирования
+log:
+  level: "debug"
+#  target: /var/log/my_service.log

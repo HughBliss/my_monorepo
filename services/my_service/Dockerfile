@@ -8,8 +8,6 @@ RUN apk add --no-cache
 
 WORKDIR /monorepo
 
-COPY go.work go.work
-COPY go.work.sum go.work.sum
 COPY packages packages
 COPY services services
 

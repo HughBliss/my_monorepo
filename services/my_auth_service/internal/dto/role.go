@@ -13,7 +13,7 @@ type DomainRoles struct {
 }
 
 func DomainRolesFromEnt(e *dbauth.Domain) *DomainRoles {
-	roles := make([]*Role, 0)
+	roles := make([]*Role, len(e.Edges.Roles))
 	for i, role := range e.Edges.Roles {
 		roles[i] = RoleFromEnt(role)
 	}
@@ -35,6 +35,7 @@ func (r DomainRoles) ToProto() *roleserv1.DomainRoles {
 			Id:   r.DomainID,
 			Name: r.DomainName,
 		},
+		Roles: roles,
 	}
 }
 

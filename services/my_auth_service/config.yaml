@@ -1,3 +1,14 @@
 listen:
   host: 0.0.0.0 # LISTEN_HOST
   port: 12000 # LISTEN_PORT
+
+db_auth:
+  user: ukrik
+  name: auth
+  port: 5432
+  host: localhost
+  password: secret
+
+log:
+  level: "debug"
+#  target: /var/log/my_auth_service.log

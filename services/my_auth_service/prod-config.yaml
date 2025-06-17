@@ -1,0 +1,6 @@
+db_auth:
+  user: ukrik
+  name: auth
+  port: 5432
+  host: db
+  password: secret

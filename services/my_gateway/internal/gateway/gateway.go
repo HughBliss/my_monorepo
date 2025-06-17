@@ -5,6 +5,7 @@ import (
 	zfg "github.com/chaindead/zerocfg"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	perserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/permissions/v1"
+	roleserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/roles/v1"
 	someservicev1 "github.com/hughbliss/my_protobuf/go/pkg/gen/someservice/v1"
 	"github.com/hughbliss/my_toolkit/tracer"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -31,12 +32,18 @@ func Gateway(ctx context.Context) (http.Handler, error) {
 		grpc.WithStatsHandler(tracer.ClientTracePropagator()),
 	}
 
+	/* EXAMPLE_MICROSERVICE */
 	if err := someservicev1.RegisterSomeServiceHandlerFromEndpoint(
 		ctx, mux, *connectionStringSomeService, defaultGRPCOptions); err != nil {
 		return nil, err
 	}
 
+	/* AUTH_MICROSERVICE */
 	if err := perserv1.RegisterPermissionsServiceHandlerFromEndpoint(
+		ctx, mux, *connectionStringAuthService, defaultGRPCOptions); err != nil {
+		return nil, err
+	}
+	if err := roleserv1.RegisterRolesServiceHandlerFromEndpoint(
 		ctx, mux, *connectionStringAuthService, defaultGRPCOptions); err != nil {
 		return nil, err
 	}

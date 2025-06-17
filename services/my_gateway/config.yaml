@@ -1,0 +1,3 @@
+log:
+  level: "debug"
+#  target: /var/log/my_gateway_service.log
