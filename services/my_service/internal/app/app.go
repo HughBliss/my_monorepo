@@ -11,7 +11,12 @@ import (
 	"github.com/hughbliss/my_service/internal/usecase"
 	"github.com/hughbliss/my_toolkit/grpcerver"
 	"github.com/hughbliss/my_toolkit/reporter"
-	"github.com/hughbliss/my_toolkit/tracer"
+	"github.com/hughbliss/my_toolkit/telemetry"
+	"github.com/hughbliss/my_toolkit/telemetry/meter"
+	meterExporter "github.com/hughbliss/my_toolkit/telemetry/meter/exporter/otplmeter"
+	"github.com/hughbliss/my_toolkit/telemetry/tracer"
+	traceExporter "github.com/hughbliss/my_toolkit/telemetry/tracer/exporter/jaeger"
+	"github.com/hughbliss/my_toolkit/telemetry/tracer/trace_middleware"
 )
 
 var (
@@ -22,21 +27,39 @@ var (
 	env     = zfg.Str("env", "local", "ENV", zfg.Alias("e"))
 )
 
-func Run() {
+func initTelemetry() func() {
 	ctx := context.Background()
+	resourceMeta := telemetry.ResourceMeta(*appName, *appVer, *env)
+
+	jaegerExporter, err := traceExporter.Jaeger(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	otlpMeter, err := meterExporter.OTLPMeter(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	tracerDown := tracer.Init(ctx, resourceMeta, jaegerExporter)
+	meterDown := meter.Init(ctx, resourceMeta, otlpMeter)
+
+	return func() {
+		meterDown()
+		tracerDown()
+	}
+}
+func Run() {
 
 	if err := zfg.Parse(zfgEnv.New(), zfgYaml.New(configYamlPath)); err != nil {
 		panic(err)
 	}
 	fmt.Println("starting with config\n", zfg.Show())
 
-	shutdown, err := tracer.Init(ctx, *appName, *appVer, *env)
-	if err != nil {
-		panic(err)
-	}
-	defer shutdown()
+	lelemetryDown := initTelemetry()
+	defer lelemetryDown()
 
-	reporter.Init(*appName, *appVer, *env, tracer.HookForLogger())
+	reporter.Init(*appName, *appVer, *env, trace_middleware.HookForLogger())
 
 	s := grpcerver.Init()
 	defer s.GracefulStop()

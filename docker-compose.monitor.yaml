@@ -1,3 +1,4 @@
+# docker-compose.monitor.yaml
 networks:
   v2:
     external: true
@@ -25,6 +26,9 @@ services:
       - ALLOY_HOSTNAME=alloy
     networks:
       - v2
+    ports:
+      - "12345:12345" # UI самого Alloy
+      - "4317:4317"   # OTLP порт для метрик
   grafana:
     environment:
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
@@ -34,26 +38,20 @@ services:
     entrypoint:
       - sh
       - -euc
-      - |
-        mkdir -p /etc/grafana/provisioning/datasources
-        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
-        apiVersion: 1
-        datasources:
-        - name: Loki
-          type: loki
-          access: proxy 
-          orgId: 1
-          url: http://loki:3100
-          basicAuth: false
-          isDefault: true
-          version: 1
-          editable: false
-        EOF
-        /run.sh
+      - /run.sh
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
     networks:
       - v2
-#    volumes:
-#      - ./tools/grafana:/etc/grafana
+    volumes:
+      - ./tools/grafana:/etc/grafana/provisioning
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./tools/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command: --config.file=/etc/prometheus/prometheus.yml --web.enable-remote-write-receiver # Включаем приемник remote_write
+    networks:
+      - v2

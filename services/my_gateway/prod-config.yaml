@@ -1,3 +1,21 @@
+
+app_name: my_gateway # APPNAME
+app_ver: 0.0.1 # APPVER
+env: local # ENV
+
+listen:
+  host: 0.0.0.0 # LISTEN_HOST
+  port: 8080 # LISTEN_PORT
+
 connection:
   some_service: my_service:11000
   auth_service: my_auth_service:11000
+
+log:
+  level: debug # LOG_LEVEL уровень логирования
+jaeger:
+  host: jaeger # JAEGER_HOST
+  port: 4317 # JAEGER_HOST
+otlpmeter:
+  host: alloy # OTLPMETER_HOST
+  port: 4317 # OTLPMETER_HOST

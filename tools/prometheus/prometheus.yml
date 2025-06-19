@@ -1,0 +1,10 @@
+# tools/prometheus/prometheus.yml
+global:
+  scrape_interval: 15s
+
+# Нам даже не нужны scrape_configs, так как Alloy делает всю работу.
+# Prometheus просто слушает входящие данные.
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

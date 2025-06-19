@@ -7,11 +7,17 @@ import (
 	"github.com/hughbliss/my_gateway/internal/gateway"
 	"github.com/hughbliss/my_toolkit/cfg"
 	"github.com/hughbliss/my_toolkit/reporter"
-	"github.com/hughbliss/my_toolkit/tracer"
+	"github.com/hughbliss/my_toolkit/telemetry"
+	"github.com/hughbliss/my_toolkit/telemetry/meter"
+	meterExporter "github.com/hughbliss/my_toolkit/telemetry/meter/exporter/otplmeter"
+	"github.com/hughbliss/my_toolkit/telemetry/tracer"
+	traceExporter "github.com/hughbliss/my_toolkit/telemetry/tracer/exporter/jaeger"
+	"github.com/hughbliss/my_toolkit/telemetry/tracer/trace_middleware"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/otel"
 )
 
 var (
@@ -26,28 +32,45 @@ var (
 	env     = zfg.Str("env", "local", "ENV", zfg.Alias("e"))
 )
 
-func Run() {
-
+func initTelemetry() func() {
 	ctx := context.Background()
+	resourceMeta := telemetry.ResourceMeta(*appName, *appVer, *env)
+
+	jaegerExporter, err := traceExporter.Jaeger(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	otlpMeter, err := meterExporter.OTLPMeter(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	tracerDown := tracer.Init(ctx, resourceMeta, jaegerExporter)
+	meterDown := meter.Init(ctx, resourceMeta, otlpMeter)
+
+	return func() {
+		meterDown()
+		tracerDown()
+	}
+}
+func Run() {
 
 	if err := cfg.Init(); err != nil {
 		panic(err)
 	}
 
-	shutdown, err := tracer.Init(ctx, *appName, *appVer, *env)
-	if err != nil {
-		panic(err)
-	}
-	defer shutdown()
+	telemetryDown := initTelemetry()
+	defer telemetryDown()
 
-	reporter.Init(*appName, *appVer, *env, tracer.HookForLogger())
+	reporter.Init(*appName, *appVer, *env, trace_middleware.HookForLogger())
 
 	e := echo.New()
 	registerMiddleware(e)
 
 	mainGroup := e.Group("")
 
-	mux, err := gateway.Gateway(ctx)
+	mux, err := gateway.Gateway()
 	if err != nil {
 		panic(err)
 	}
@@ -68,6 +91,9 @@ func registerMiddleware(e *echo.Echo) {
 	e.Use(echoMiddleware.CORS())
 	e.Use(echoMiddleware.Gzip())
 	e.Use(echoMiddleware.BodyLimit("2M"))
-	e.Use(otelecho.Middleware(*appName, otelecho.WithTracerProvider(tracer.Provider)))
-	e.Use(tracer.AddTraceIDToResponse)
+	e.Use(otelecho.Middleware(*appName,
+		otelecho.WithTracerProvider(otel.GetTracerProvider()),
+	))
+	e.Use(trace_middleware.AddTraceIDToResponse)
+
 }

@@ -11,7 +11,12 @@ import (
 	"github.com/hughbliss/my_toolkit/cfg"
 	"github.com/hughbliss/my_toolkit/grpcerver"
 	"github.com/hughbliss/my_toolkit/reporter"
-	"github.com/hughbliss/my_toolkit/tracer"
+	"github.com/hughbliss/my_toolkit/telemetry"
+	"github.com/hughbliss/my_toolkit/telemetry/meter"
+	meterExporter "github.com/hughbliss/my_toolkit/telemetry/meter/exporter/otplmeter"
+	"github.com/hughbliss/my_toolkit/telemetry/tracer"
+	traceExporter "github.com/hughbliss/my_toolkit/telemetry/tracer/exporter/jaeger"
+	"github.com/hughbliss/my_toolkit/telemetry/tracer/trace_middleware"
 )
 
 var (
@@ -20,19 +25,39 @@ var (
 	env     = zfg.Str("env", "local", "ENV", zfg.Alias("e"))
 )
 
-func Run() {
+func initTelemetry() func() {
 	ctx := context.Background()
+	resourceMeta := telemetry.ResourceMeta(*appName, *appVer, *env)
+
+	jaegerExporter, err := traceExporter.Jaeger(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	otlpMeter, err := meterExporter.OTLPMeter(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	tracerDown := tracer.Init(ctx, resourceMeta, jaegerExporter)
+	meterDown := meter.Init(ctx, resourceMeta, otlpMeter)
+
+	return func() {
+		meterDown()
+		tracerDown()
+	}
+}
+
+func Run() {
 
 	if err := cfg.Init(); err != nil {
 		panic(err)
 	}
-	tracerDown, err := tracer.Init(ctx, *appName, *appVer, *env)
-	if err != nil {
-		panic(err)
-	}
-	defer tracerDown()
 
-	reporter.Init(*appName, *appVer, *env, tracer.HookForLogger())
+	lelemetryDown := initTelemetry()
+	defer lelemetryDown()
+
+	reporter.Init(*appName, *appVer, *env, trace_middleware.HookForLogger())
 
 	db, err := dbauthclient.Init(&dbauthclient.Config{Debug: false})
 	if err != nil {

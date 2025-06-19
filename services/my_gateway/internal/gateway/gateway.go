@@ -7,8 +7,9 @@ import (
 	perserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/permissions/v1"
 	roleserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/roles/v1"
 	someservicev1 "github.com/hughbliss/my_protobuf/go/pkg/gen/someservice/v1"
-	"github.com/hughbliss/my_toolkit/tracer"
+	"github.com/hughbliss/my_toolkit/telemetry/tracer/trace_propagator"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"net/http"
@@ -23,13 +24,17 @@ var (
 	//connectionStringYetAnotherService = zfg.Str("yet_another_service", "0.0.0.0:11000", "CONNECTION_YETANOTHERSERVICE", zfg.Group(connectionsGroup))
 )
 
-func Gateway(ctx context.Context) (http.Handler, error) {
+func Gateway() (http.Handler, error) {
+	ctx := context.Background()
 	mux := runtime.NewServeMux()
 
 	defaultGRPCOptions := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracer.Provider))),
-		grpc.WithStatsHandler(tracer.ClientTracePropagator()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler(
+			otelgrpc.WithTracerProvider(otel.GetTracerProvider()),
+			otelgrpc.WithMeterProvider(otel.GetMeterProvider()),
+		)),
+		grpc.WithStatsHandler(trace_propagator.ClientTracePropagator()),
 	}
 
 	/* EXAMPLE_MICROSERVICE */

@@ -2,29 +2,50 @@
 // #### Metrics Configuration ####
 // ###############################
 
-// // Host Cadvisor on the Docker socket to expose container metrics.
-// prometheus.exporter.cadvisor "example" {
-//   docker_host = "unix:///var/run/docker.sock"
-//
-//   storage_duration = "5m"
-// }
-//
-//
-// // Configure a prometheus.scrape component to collect cadvisor metrics.
-// prometheus.scrape "scraper" {
-//   targets    = prometheus.exporter.cadvisor.example.targets
-//   forward_to = [ prometheus.remote_write.demo.receiver ]
-//
-//
-//   scrape_interval = "10s"
-// }
-//
-// // Configure a prometheus.remote_write component to send metrics to a Prometheus server.
-// prometheus.remote_write "demo" {
-//   endpoint {
-//     url = "http://prometheus:9090/api/v1/write"
-//   }
-// }
+// --- ПОТОК 1: Метрики контейнеров (cAdvisor -> Prometheus) ---
+
+// 1a. Собираем метрики с хоста и контейнеров (процессор, память и т.д.)
+prometheus.exporter.cadvisor "docker_containers" {
+  // Этот компонент не требует явной конфигурации для базового использования
+}
+
+// 1b. Собираем (scrape) метрики, которые отдает cAdvisor
+prometheus.scrape "cadvisor_scraper" {
+  targets    = prometheus.exporter.cadvisor.docker_containers.targets
+  // Отправляем их на вход компонента prometheus.remote_write
+  forward_to = [prometheus.remote_write.default.receiver]
+  scrape_interval = "15s"
+}
+
+// 1c. Отправляем метрики, полученные от scraper'а, в Prometheus
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+
+// --- ПОТОК 2: Метрики приложений (OTLP -> Prometheus) ---
+
+// 2a. Принимаем метрики от ваших приложений по OTLP/gRPC
+otelcol.receiver.otlp "app_metrics" {
+  grpc {
+    endpoint = "0.0.0.0:4317" // Порт, который слушает Alloy
+  }
+
+  // Отправляем полученные OTLP метрики на вход OTLP-экспортера
+  output {
+    metrics = [otelcol.exporter.prometheus.app_metrics_to_prometheus.input]
+  }
+}
+
+// 2b. ПРАВИЛЬНЫЙ КОМПОНЕНТ: Конвертируем OTLP метрики и отправляем их в Prometheus
+otelcol.exporter.prometheus "app_metrics_to_prometheus" {
+    // Вместо того чтобы открывать порт для scrape, мы отправляем метрики
+    // в существующий компонент prometheus.remote_write
+    forward_to = [prometheus.remote_write.default.receiver]
+}
+
 
 // ###############################
 // #### Logging Configuration ####
@@ -39,24 +60,22 @@ discovery.docker "linux" {
 discovery.relabel "logs_integrations_docker" {
       targets = []
 
-      rule {
-          source_labels = ["__meta_docker_container_name"]
-          regex = "/(.*)"
-          target_label = "service_name"
-      }
-
-  }
+    rule {
+        source_labels = ["__meta_docker_container_name"]
+        regex         = ".*/(.*)"
+        target_label  = "container_name"
+    }
+}
 
 
 // Configure a loki.source.docker component to collect logs from Docker containers.
 loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.docker.linux.targets
-  labels     = {"platform" = "docker"}
+  labels     = {"domain" = "local"}
   relabel_rules = discovery.relabel.logs_integrations_docker.rules
   forward_to = [loki.write.local.receiver]
 }
-
 loki.write "local" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
