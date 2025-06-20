@@ -8,8 +8,6 @@ import (
 	"github.com/hughbliss/my_toolkit/cfg"
 	"github.com/hughbliss/my_toolkit/reporter"
 	"github.com/hughbliss/my_toolkit/telemetry"
-	"github.com/hughbliss/my_toolkit/telemetry/meter"
-	meterExporter "github.com/hughbliss/my_toolkit/telemetry/meter/exporter/otplmeter"
 	"github.com/hughbliss/my_toolkit/telemetry/tracer"
 	traceExporter "github.com/hughbliss/my_toolkit/telemetry/tracer/exporter/jaeger"
 	"github.com/hughbliss/my_toolkit/telemetry/tracer/trace_middleware"
@@ -41,16 +39,16 @@ func initTelemetry() func() {
 		panic(err)
 	}
 
-	otlpMeter, err := meterExporter.OTLPMeter(ctx)
-	if err != nil {
-		panic(err)
-	}
+	//otlpMeter, err := meterExporter.OTLPMeter(ctx)
+	//if err != nil {
+	//	panic(err)
+	//}
 
 	tracerDown := tracer.Init(ctx, resourceMeta, jaegerExporter)
-	meterDown := meter.Init(ctx, resourceMeta, otlpMeter)
+	//meterDown := meter.Init(ctx, resourceMeta, otlpMeter)
 
 	return func() {
-		meterDown()
+		//meterDown()
 		tracerDown()
 	}
 }
@@ -69,13 +67,18 @@ func Run() {
 	registerMiddleware(e)
 
 	mainGroup := e.Group("")
-
-	mux, err := gateway.Gateway()
+	mainGatewayHandler, err := gateway.MainGateway()
 	if err != nil {
 		panic(err)
 	}
+	mainGroup.Any("/*", echo.WrapHandler(mainGatewayHandler))
 
-	mainGroup.Any("/*", echo.WrapHandler(mux))
+	adminGroup := e.Group("/admin")
+	adminGatewayHandler, err := gateway.AdminGateway()
+	if err != nil {
+		panic(err)
+	}
+	adminGroup.Any("/*", echo.WrapHandler(adminGatewayHandler))
 
 	if err := e.Start(fmt.Sprintf("%s:%d", *listenHost, *listenPort)); err != nil {
 		panic(err)

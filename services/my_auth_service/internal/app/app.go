@@ -6,14 +6,14 @@ import (
 	"github.com/hughbliss/my_auth_service/internal/handler"
 	"github.com/hughbliss/my_auth_service/internal/usecase"
 	"github.com/hughbliss/my_database/pkg/dbauthclient"
+	admrolserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/admin/roles/v1"
+	admusrserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/admin/users/v1"
 	perserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/permissions/v1"
-	roleserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/roles/v1"
 	"github.com/hughbliss/my_toolkit/cfg"
+	"github.com/hughbliss/my_toolkit/fault"
 	"github.com/hughbliss/my_toolkit/grpcerver"
 	"github.com/hughbliss/my_toolkit/reporter"
 	"github.com/hughbliss/my_toolkit/telemetry"
-	"github.com/hughbliss/my_toolkit/telemetry/meter"
-	meterExporter "github.com/hughbliss/my_toolkit/telemetry/meter/exporter/otplmeter"
 	"github.com/hughbliss/my_toolkit/telemetry/tracer"
 	traceExporter "github.com/hughbliss/my_toolkit/telemetry/tracer/exporter/jaeger"
 	"github.com/hughbliss/my_toolkit/telemetry/tracer/trace_middleware"
@@ -34,16 +34,20 @@ func initTelemetry() func() {
 		panic(err)
 	}
 
-	otlpMeter, err := meterExporter.OTLPMeter(ctx)
-	if err != nil {
+	if err := fault.InitLocales("./locales/ru.yaml"); err != nil {
 		panic(err)
 	}
 
+	//otlpMeter, err := meterExporter.OTLPMeter(ctx)
+	//if err != nil {
+	//	panic(err)
+	//}
+
 	tracerDown := tracer.Init(ctx, resourceMeta, jaegerExporter)
-	meterDown := meter.Init(ctx, resourceMeta, otlpMeter)
+	//meterDown := meter.Init(ctx, resourceMeta, otlpMeter)
 
 	return func() {
-		meterDown()
+		//meterDown()
 		tracerDown()
 	}
 }
@@ -68,9 +72,18 @@ func Run() {
 	s := grpcerver.Init()
 	defer s.GracefulStop()
 
+	// REPOSITORIES
+
+	// USECASES
 	rolesUsecase := usecase.NewRolesUsecase(db)
-	rolesHandler := handler.NewRolesHandler(rolesUsecase)
-	roleserv1.RegisterRolesServiceServer(s, rolesHandler)
+	usersUsecase := usecase.NewUsersUsecase(db)
+
+	// HANDLERS
+	adminRolesHandler := handler.NewAdminRolesHandler(rolesUsecase)
+	admrolserv1.RegisterAdminRolesServiceServer(s, adminRolesHandler)
+
+	adminUserHandler := handler.NewAdminUserHandler(usersUsecase)
+	admusrserv1.RegisterAdminUsersServiceServer(s, adminUserHandler)
 
 	permissionsHandler := handler.NewPermissionsHandler()
 	perserv1.RegisterPermissionsServiceServer(s, permissionsHandler)

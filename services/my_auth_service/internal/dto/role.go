@@ -2,8 +2,10 @@ package dto
 
 import (
 	"github.com/hughbliss/my_database/pkg/gen/dbauth"
+	admrolserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/admin/roles/v1"
 	"github.com/hughbliss/my_protobuf/go/pkg/gen/common/v1"
-	roleserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/roles/v1"
+	rolserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/roles/v1"
+	"github.com/rs/xid"
 )
 
 type DomainRoles struct {
@@ -25,12 +27,12 @@ func DomainRolesFromEnt(e *dbauth.Domain) *DomainRoles {
 	}
 }
 
-func (r DomainRoles) ToProto() *roleserv1.DomainRoles {
-	roles := make([]*roleserv1.Role, len(r.Roles))
+func (r DomainRoles) ToProto() *admrolserv1.DomainRoles {
+	roles := make([]*rolserv1.Role, len(r.Roles))
 	for i, role := range r.Roles {
 		roles[i] = role.ToProto()
 	}
-	return &roleserv1.DomainRoles{
+	return &admrolserv1.DomainRoles{
 		Domain: &common.Domain{
 			Id:   r.DomainID,
 			Name: r.DomainName,
@@ -40,27 +42,42 @@ func (r DomainRoles) ToProto() *roleserv1.DomainRoles {
 }
 
 type Role struct {
+	ID          xid.ID
 	Name        string
 	Description string
 	Permissions []string
-	DomainId    string
+	DomainId    xid.ID
+}
+
+func RoleFromProto(p *rolserv1.Role) *Role {
+	id, _ := xid.FromString(p.Id)
+	domainId, _ := xid.FromString(p.DomainId)
+	return &Role{
+		ID:          id,
+		Name:        p.Name,
+		Description: p.Description,
+		Permissions: p.Permissions,
+		DomainId:    domainId,
+	}
 }
 
 func RoleFromEnt(e *dbauth.Role) *Role {
 	return &Role{
+		ID:          e.ID,
 		Name:        e.Name,
 		Description: e.Description,
 		Permissions: e.Permissions,
-		DomainId:    e.DomainID.String(),
+		DomainId:    e.DomainID,
 	}
 }
 
-func (r *Role) ToProto() *roleserv1.Role {
-	return &roleserv1.Role{
+func (r *Role) ToProto() *rolserv1.Role {
+	return &rolserv1.Role{
+		Id:          r.ID.String(),
 		Name:        r.Name,
 		Description: r.Description,
 		Permissions: r.Permissions,
-		DomainId:    r.DomainId,
+		DomainId:    r.DomainId.String(),
 	}
 }
 
@@ -77,8 +94,8 @@ func DomainRolesListFromEnt(e []*dbauth.Domain) DomainRolesList {
 	return res
 }
 
-func (l DomainRolesList) ToProto() []*roleserv1.DomainRoles {
-	roles := make([]*roleserv1.DomainRoles, len(l))
+func (l DomainRolesList) ToProto() []*admrolserv1.DomainRoles {
+	roles := make([]*admrolserv1.DomainRoles, len(l))
 	for i, role := range l {
 		roles[i] = role.ToProto()
 	}

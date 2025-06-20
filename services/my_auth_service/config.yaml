@@ -10,5 +10,5 @@ db_auth:
   password: secret
 
 log:
-  level: "debug"
+  level: "info"
 #  target: /var/log/my_auth_service.log
