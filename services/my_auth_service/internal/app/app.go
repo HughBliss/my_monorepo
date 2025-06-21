@@ -4,10 +4,12 @@ import (
 	"context"
 	zfg "github.com/chaindead/zerocfg"
 	"github.com/hughbliss/my_auth_service/internal/handler"
+	"github.com/hughbliss/my_auth_service/internal/service/authn"
 	"github.com/hughbliss/my_auth_service/internal/usecase"
 	"github.com/hughbliss/my_database/pkg/dbauthclient"
 	admrolserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/admin/roles/v1"
 	admusrserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/admin/users/v1"
+	authnv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/authn/v1"
 	perserv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/permissions/v1"
 	"github.com/hughbliss/my_toolkit/cfg"
 	"github.com/hughbliss/my_toolkit/fault"
@@ -74,11 +76,17 @@ func Run() {
 
 	// REPOSITORIES
 
+	// SERVICES
+	authnService := authn.New(db)
+
 	// USECASES
 	rolesUsecase := usecase.NewRolesUsecase(db)
 	usersUsecase := usecase.NewUsersUsecase(db)
 
 	// HANDLERS
+	authnHandler := handler.NewAuthenticationHandler(authnService)
+	authnv1.RegisterAuthenticationServiceServer(s, authnHandler)
+
 	adminRolesHandler := handler.NewAdminRolesHandler(rolesUsecase)
 	admrolserv1.RegisterAdminRolesServiceServer(s, adminRolesHandler)
 

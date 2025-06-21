@@ -5,6 +5,9 @@ import (
 	"fmt"
 	zfg "github.com/chaindead/zerocfg"
 	"github.com/hughbliss/my_gateway/internal/gateway"
+	"github.com/hughbliss/my_gateway/internal/middleware"
+	"github.com/hughbliss/my_gateway/internal/service"
+	"github.com/hughbliss/my_protobuf/go/pkg/gen/swagger"
 	"github.com/hughbliss/my_toolkit/cfg"
 	"github.com/hughbliss/my_toolkit/reporter"
 	"github.com/hughbliss/my_toolkit/telemetry"
@@ -16,6 +19,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel"
+	"net/http"
 )
 
 var (
@@ -66,19 +70,40 @@ func Run() {
 	e := echo.New()
 	registerMiddleware(e)
 
-	mainGroup := e.Group("")
-	mainGatewayHandler, err := gateway.MainGateway()
+	swaggerYamlContent, err := swagger.GetSwagger(swagger.Meta{
+		Title:   *appName,
+		Version: *appVer,
+		Host:    "localhost",
+	})
 	if err != nil {
 		panic(err)
 	}
-	mainGroup.Any("/*", echo.WrapHandler(mainGatewayHandler))
+	e.GET("/swagger/doc.yaml", func(c echo.Context) error {
+		return c.Blob(http.StatusOK, "application/x-yaml", []byte(swaggerYamlContent))
+	})
 
-	adminGroup := e.Group("/admin")
-	adminGatewayHandler, err := gateway.AdminGateway()
+	authService, err := service.NewAuthenticationService()
 	if err != nil {
 		panic(err)
 	}
-	adminGroup.Any("/*", echo.WrapHandler(adminGatewayHandler))
+
+	authInterceptor := middleware.AuthInterceptor(authService)
+
+	v1 := e.Group("/v1")
+
+	v1Main := v1.Group("")
+	mainGatewayHandler, err := gateway.MainGateway(authInterceptor)
+	if err != nil {
+		panic(err)
+	}
+	v1Main.Any("/*", echo.WrapHandler(mainGatewayHandler))
+
+	v1Admin := v1.Group("/admin")
+	adminGatewayHandler, err := gateway.AdminGateway(authInterceptor)
+	if err != nil {
+		panic(err)
+	}
+	v1Admin.Any("/*", echo.WrapHandler(adminGatewayHandler))
 
 	if err := e.Start(fmt.Sprintf("%s:%d", *listenHost, *listenPort)); err != nil {
 		panic(err)

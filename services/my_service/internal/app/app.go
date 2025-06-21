@@ -12,8 +12,6 @@ import (
 	"github.com/hughbliss/my_toolkit/grpcerver"
 	"github.com/hughbliss/my_toolkit/reporter"
 	"github.com/hughbliss/my_toolkit/telemetry"
-	"github.com/hughbliss/my_toolkit/telemetry/meter"
-	meterExporter "github.com/hughbliss/my_toolkit/telemetry/meter/exporter/otplmeter"
 	"github.com/hughbliss/my_toolkit/telemetry/tracer"
 	traceExporter "github.com/hughbliss/my_toolkit/telemetry/tracer/exporter/jaeger"
 	"github.com/hughbliss/my_toolkit/telemetry/tracer/trace_middleware"
@@ -36,16 +34,16 @@ func initTelemetry() func() {
 		panic(err)
 	}
 
-	otlpMeter, err := meterExporter.OTLPMeter(ctx)
-	if err != nil {
-		panic(err)
-	}
+	//otlpMeter, err := meterExporter.OTLPMeter(ctx)
+	//if err != nil {
+	//	panic(err)
+	//}
 
 	tracerDown := tracer.Init(ctx, resourceMeta, jaegerExporter)
-	meterDown := meter.Init(ctx, resourceMeta, otlpMeter)
+	//meterDown := meter.Init(ctx, resourceMeta, otlpMeter)
 
 	return func() {
-		meterDown()
+		//meterDown()
 		tracerDown()
 	}
 }

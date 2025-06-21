@@ -2,7 +2,6 @@ app_name: my_service # APPNAME
 app_ver: 0.0.1 # APPVER
 
 jaeger:
-  enable: true # JAEGER_ENABLE
   host: 0.0.0.0 # JAEGER_HOST
   port: 4317 # JAEGER_HOST
 
@@ -12,4 +11,4 @@ listen:
 
 log:
   level: "debug"
-#  target: /var/log/my_service.log
+

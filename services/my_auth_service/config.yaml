@@ -9,6 +9,8 @@ db_auth:
   host: localhost
   password: secret
 
+auth:
+  secret: secret
+
 log:
-  level: "info"
-#  target: /var/log/my_auth_service.log
+  level: "debug"
