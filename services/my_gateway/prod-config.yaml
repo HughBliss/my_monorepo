@@ -16,6 +16,3 @@ log:
 jaeger:
   host: jaeger # JAEGER_HOST
   port: 4317 # JAEGER_HOST
-otlpmeter:
-  host: alloy # OTLPMETER_HOST
-  port: 4317 # OTLPMETER_HOST

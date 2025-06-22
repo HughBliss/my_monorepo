@@ -19,6 +19,7 @@ services:
       dockerfile: services/my_gateway/Dockerfile
       args:
         - SERVICE_NAME=my_gateway
+    image: ghcr.io/hughbliss/my_gateway:local
 
   my_auth_service:
     container_name: my_auth_service
@@ -33,6 +34,7 @@ services:
       dockerfile: services/my_auth_service/Dockerfile
       args:
         - SERVICE_NAME=my_auth_service
+    image: ghcr.io/hughbliss/my_auth_service:local
 
   my_service:
     container_name: my_service
@@ -47,3 +49,4 @@ services:
       dockerfile: services/my_service/Dockerfile
       args:
         - SERVICE_NAME=my_service
+    image: ghcr.io/hughbliss/my_service:local
