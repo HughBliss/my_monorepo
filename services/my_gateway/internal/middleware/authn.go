@@ -2,13 +2,15 @@ package middleware
 
 import (
 	"context"
+	"slices"
+	"strings"
+
 	"github.com/hughbliss/my_protobuf/go/pkg/gen/acman"
 	authnv1 "github.com/hughbliss/my_protobuf/go/pkg/gen/authn/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"strings"
 )
 
 func AuthInterceptor(service authnv1.AuthenticationServiceClient) grpc.UnaryClientInterceptor {
@@ -36,10 +38,8 @@ func AuthInterceptor(service authnv1.AuthenticationServiceClient) grpc.UnaryClie
 			return err
 		}
 
-		for _, permission := range userMeta.Permissions {
-			if permission == requiredPermission.Alias {
-				return invoker(ctx, method, req, reply, cc, opts...)
-			}
+		if slices.Contains(userMeta.Permissions, requiredPermission.Alias) {
+			return invoker(ctx, method, req, reply, cc, opts...)
 		}
 
 		return status.Error(codes.PermissionDenied, "у вас нет доступа: "+requiredPermission.Description)

@@ -7,6 +7,7 @@ import (
 	"github.com/hughbliss/my_gateway/internal/gateway"
 	"github.com/hughbliss/my_gateway/internal/middleware"
 	"github.com/hughbliss/my_gateway/internal/service"
+	"github.com/hughbliss/my_gateway/internal/service/tablizer"
 	"github.com/hughbliss/my_protobuf/go/pkg/gen/swagger"
 	"github.com/hughbliss/my_toolkit/cfg"
 	"github.com/hughbliss/my_toolkit/reporter"
@@ -19,6 +20,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel"
+	"google.golang.org/grpc"
 	"net/http"
 )
 
@@ -67,8 +69,29 @@ func Run() {
 
 	reporter.Init(*appName, *appVer, *env, trace_middleware.HookForLogger())
 
+	tablizerService := tablizer.New()
+
+	authService, err := service.NewAuthenticationService()
+	if err != nil {
+		panic(err)
+	}
+
+	authInterceptor := middleware.AuthInterceptor(authService)
+
 	e := echo.New()
-	registerMiddleware(e)
+	e.Use(echoMiddleware.LoggerWithConfig(echoMiddleware.LoggerConfig{
+		Format: "${status} ${method} ${uri}",
+		Output: log.With().Str("level", "info").Str("component", "echo").Logger(),
+	}))
+	e.Use(echoMiddleware.Recover())
+	e.Use(echoMiddleware.CORS())
+	e.Use(echoMiddleware.Gzip())
+	e.Use(echoMiddleware.BodyLimit("2M"))
+	e.Use(otelecho.Middleware(*appName,
+		otelecho.WithTracerProvider(otel.GetTracerProvider()),
+	))
+	e.Use(trace_middleware.AddTraceIDToResponse)
+	e.Use(tablizerService.EchoMiddleware())
 
 	swaggerYamlContent, err := swagger.GetSwagger(swagger.Meta{
 		Title:   *appName,
@@ -82,24 +105,27 @@ func Run() {
 		return c.Blob(http.StatusOK, "application/x-yaml", []byte(swaggerYamlContent))
 	})
 
-	authService, err := service.NewAuthenticationService()
-	if err != nil {
-		panic(err)
-	}
-
-	authInterceptor := middleware.AuthInterceptor(authService)
-
 	v1 := e.Group("/v1")
 
 	v1Main := v1.Group("")
-	mainGatewayHandler, err := gateway.MainGateway(authInterceptor)
+	mainGatewayHandler, err := gateway.MainGateway(
+		grpc.WithChainUnaryInterceptor(
+			tablizerService.GRPCMiddleware(),
+			authInterceptor,
+		),
+	)
 	if err != nil {
 		panic(err)
 	}
 	v1Main.Any("/*", echo.WrapHandler(mainGatewayHandler))
 
 	v1Admin := v1.Group("/admin")
-	adminGatewayHandler, err := gateway.AdminGateway(authInterceptor)
+	adminGatewayHandler, err := gateway.AdminGateway(
+		grpc.WithChainUnaryInterceptor(
+			tablizerService.GRPCMiddleware(),
+			authInterceptor,
+		),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -108,20 +134,4 @@ func Run() {
 	if err := e.Start(fmt.Sprintf("%s:%d", *listenHost, *listenPort)); err != nil {
 		panic(err)
 	}
-}
-
-func registerMiddleware(e *echo.Echo) {
-	e.Use(echoMiddleware.LoggerWithConfig(echoMiddleware.LoggerConfig{
-		Format: "${status} ${method} ${uri}",
-		Output: log.With().Str("level", "info").Str("component", "echo").Logger(),
-	}))
-	e.Use(echoMiddleware.Recover())
-	e.Use(echoMiddleware.CORS())
-	e.Use(echoMiddleware.Gzip())
-	e.Use(echoMiddleware.BodyLimit("2M"))
-	e.Use(otelecho.Middleware(*appName,
-		otelecho.WithTracerProvider(otel.GetTracerProvider()),
-	))
-	e.Use(trace_middleware.AddTraceIDToResponse)
-
 }

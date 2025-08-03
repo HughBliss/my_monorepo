@@ -9,14 +9,14 @@ import (
 	"net/http"
 )
 
-func AdminGateway(authInterceptor grpc.UnaryClientInterceptor) (http.Handler, error) {
+func AdminGateway(options ...grpc.DialOption) (http.Handler, error) {
 	ctx := context.Background()
 	mux := runtime.NewServeMux()
 
 	var opts []grpc.DialOption
 	opts = append(opts, DefaultGRPCOptions...)
-	if authInterceptor != nil {
-		opts = append(opts, grpc.WithUnaryInterceptor(authInterceptor))
+	for _, option := range options {
+		opts = append(opts, option)
 	}
 
 	/* AUTH_MICROSERVICE */

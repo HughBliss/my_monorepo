@@ -10,24 +10,24 @@ import (
 	"net/http"
 )
 
-func MainGateway(authInterceptor grpc.UnaryClientInterceptor) (http.Handler, error) {
+func MainGateway(options ...grpc.DialOption) (http.Handler, error) {
 	ctx := context.Background()
 	mux := runtime.NewServeMux()
 
-	withAuth := []grpc.DialOption{
-		grpc.WithUnaryInterceptor(authInterceptor),
+	var opts []grpc.DialOption
+	opts = append(opts, DefaultGRPCOptions...)
+	for _, option := range options {
+		opts = append(opts, option)
 	}
-	withAuth = append(withAuth, DefaultGRPCOptions...)
-
 	/* EXAMPLE_MICROSERVICE */
 	if err := someservicev1.RegisterSomeServiceHandlerFromEndpoint(
-		ctx, mux, *ConnectionStringSomeService, withAuth); err != nil {
+		ctx, mux, *ConnectionStringSomeService, opts); err != nil {
 		return nil, err
 	}
 
 	/* AUTH_MICROSERVICE */
 	if err := perserv1.RegisterPermissionsServiceHandlerFromEndpoint(
-		ctx, mux, *ConnectionStringAuthService, withAuth); err != nil {
+		ctx, mux, *ConnectionStringAuthService, opts); err != nil {
 		return nil, err
 	}
 	if err := authnv1.RegisterAuthenticationServiceHandlerFromEndpoint(

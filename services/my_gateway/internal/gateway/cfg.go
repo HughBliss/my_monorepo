@@ -2,7 +2,7 @@ package gateway
 
 import (
 	zfg "github.com/chaindead/zerocfg"
-	"github.com/hughbliss/my_toolkit/telemetry/tracer/trace_propagator"
+	"github.com/ukrik/toolkit/v2/telemetry/tracer/trace_propagator"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
